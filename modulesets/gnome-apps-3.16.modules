@@ -429,6 +429,9 @@
 
   <autotools id="glade">
     <branch/>
+    <if condition-set="quartz">
+      <autogenargs value="CPPFLAGS='-xobjective-c'"/>
+    </if>
     <dependencies>
       <dep package="intltool"/>
       <dep package="gnome-common"/>
