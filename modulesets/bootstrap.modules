@@ -4,7 +4,6 @@
   <repository type="tarball" name="ftp.gnu.org" href="http://ftp.gnu.org/gnu/"/>
   <repository type="tarball" name="xorg" href="http://xorg.freedesktop.org/"/>
   <repository type="tarball" name="pkgconfig" href="http://pkgconfig.freedesktop.org/releases/"/>
-  <repository type="tarball" name="python" href="http://www.python.org/ftp/python/"/>
   <repository type="tarball" name="sourceforge" href="http://dfn.dl.sourceforge.net/sourceforge/"/>
   <repository type="tarball" name="tukaani.org" href="http://tukaani.org/"/>
   <repository type="tarball" name="xmlsoft" href="http://xmlsoft.org/sources/"/>
@@ -92,16 +91,6 @@
             hash="sha256:8bdc3fa3f2da81bc10c772a6b64cc9052acc2901d42e1e1b2588b40df224aad9"/>
   </autotools>
 
-  <autotools id="python" autogenargs="--enable-shared" autogen-sh="configure">
-    <pkg-config>python-2.7.pc</pkg-config>
-    <branch repo="python"
-            module="2.7.2/Python-2.7.2.tar.xz"
-            version="2.7.2"
-            hash="sha256:5d1e184869304431da59d065fe0cfe19718ed014f026bb28277dd2180f39961c"
-            size="9936152">
-    </branch>
-  </autotools>
-
   <autotools id="xz" autogen-sh="configure">
     <branch repo="tukaani.org" module="xz/xz-5.0.1.tar.bz2" version="5.0.1"
             size="1005959" md5sum="cb6c7a58cec4d663a395c54d186ca0c6"
@@ -118,7 +107,7 @@
             size="3435907" hash="sha256:5fc7151a57b89c03d7b825df5a0fae0a8d5f05674c0e7cf2937ecec4d54a028c"/>
   </autotools>
 
-  <autotools id="libxml2" autogen-sh="configure">
+  <autotools id="libxml2" autogen-template="%(srcdir)s/configure --prefix=%(prefix)s --with-python-install-dir=%(prefix)s/lib/python2.7/site-packages">
     <branch repo="xmlsoft" module="libxml2-2.9.2.tar.gz" version="2.9.2"
             size="5444991" hash="sha256:5178c30b151d044aefb1b08bf54c3003a0ac55c59c866763997529d60770d5bc"/>
   </autotools>
@@ -181,7 +170,6 @@
         <dep package="bison"/>
         <dep package="pkg-config"/>
         <dep package="cmake"/>
-        <dep package="python"/>
         <dep package="intltool"/>
         <dep package="libxslt"/>
         <dep package="libxml2"/>
