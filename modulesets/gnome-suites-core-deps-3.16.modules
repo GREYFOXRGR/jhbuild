@@ -68,6 +68,8 @@
     href="https://launchpad.net/mir/"/>
 <repository type="tarball" name="xorg-tar"
     href="http://xorg.freedesktop.org/"/>
+<repository type="tarball" name="cairo"
+    href="http://cairographics.org/releases/"/>
 
 <include href="gnome-sysdeps-3.16.modules"/>
 
@@ -1157,6 +1159,19 @@
       <dep package="gobject-introspection"/>
     </dependencies>
   </autotools>
+
+  <!-- It is a sysdep elsewhere -->
+  <if condition-set="macos">
+    <waf id="py3cairo" python-command="python3">
+      <branch repo="cairo"
+              module="pycairo-1.10.0.tar.bz2" version="1.10.0"
+              hash="sha256:9aa4078e7eb5be583aeabbe8d87172797717f95e8c4338f0d4a17b683a7253be"/>
+      <dependencies>
+        <dep package="python-devel"/>
+        <dep package="cairo"/>
+      </dependencies>
+    </waf>
+  </if>
 
   <autotools id="telepathy-glib" autogenargs="--enable-vala-bindings --disable-fatal-warnings">
     <pkg-config>telepathy-glib.pc</pkg-config>
