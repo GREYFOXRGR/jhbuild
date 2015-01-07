@@ -73,9 +73,9 @@
   </autotools>
   <autotools id="automake" autogen-sh="configure">
     <branch repo="ftp.gnu.org"
-            module="automake/automake-1.11.3.tar.gz" version="1.11.3"
-            hash="sha256:921b5188057e57bdd9c0ba06e21d0b0ea7dafa61a9bd08a2b041215bcff12f55"
-            size="1620860"/>
+            module="automake/automake-1.13.4.tar.gz" version="1.13.4"
+            hash="sha256:4c93abc0bff54b296f41f92dd3aa1e73e554265a6f719df465574983ef6f878c"
+            size="2180510"/>
   </autotools>
 
   <autotools id="pkg-config" autogen-sh="configure" autogenargs="--with-internal-glib">
