@@ -15,16 +15,32 @@
   <repository type="tarball" name="cairo" href="http://www.cairographics.org/releases/"/>
   <repository type="tarball" name="tango" href="http://tango.freedesktop.org/releases/"/>
   <repository type="tarball" name="igj" href="http://www.ijg.org/files/"/>
-  <repository type="tarball" name="ragel" href="http://www.complang.org/ragel/"/>
+  <repository type="tarball" name="ragel" href="http://www.colm.net/files/"/>
   <repository type="tarball" name="sqlite" href="http://www.sqlite.org/"/>
   <repository type="tarball" name="libproxy" href="http://libproxy.googlecode.com/files/"/>
   <repository type="tarball" name="cmake" href="http://www.cmake.org/files/"/>
+  <repository type="tarball" name="icu" href="http://download.icu-project.org/files/"/>
 
   <autotools id="xorg-macros">
     <branch repo="xorg"
             module="releases/individual/util/util-macros-1.19.0.tar.gz" version="1.19.0"
             size="96185"
             hash="sha256:0d4df51b29023daf2f63aebf3ebc638ea88efedfd560ab5866741ab3f92acaa1"/>
+  </autotools>
+
+  <autotools id="freetype2" autogen-sh="configure">
+    <branch repo="sourceforge"
+            module="freetype/freetype-2.5.5.tar.bz2" version="2.5.5"/>
+  </autotools>
+
+  <autotools id="ragel" autogen-sh="configure">
+    <branch repo="ragel"
+      module="ragel/ragel-6.9.tar.gz" version="6.9"/>
+  </autotools>
+
+  <autotools id="libicu" autogen-sh="configure">
+    <branch repo="icu"
+            module="icu4c/54.1/icu4c-54_1-src.tgz" version="54.1" checkoutdir="icu/source"/>
   </autotools>
 
   <autotools id="gettext" autogen-sh="configure">
@@ -180,6 +196,9 @@
         <dep package="automake"/>
         <dep package="bison"/>
         <dep package="pkg-config"/>
+        <dep package="freetype2"/>
+        <dep package="ragel"/>
+        <dep package="libicu"/>
         <dep package="cmake"/>
         <dep package="python"/>
         <dep package="intltool"/>
