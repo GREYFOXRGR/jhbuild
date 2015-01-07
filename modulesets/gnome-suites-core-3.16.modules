@@ -32,6 +32,9 @@
 <!-- Core User Shell -->
 
   <autotools id="at-spi2-core">
+    <if condition-unset="x11">
+      <autogenargs value="--disable-x11"/>
+    </if>
     <branch/>
     <dependencies>
       <dep package="dbus"/>
