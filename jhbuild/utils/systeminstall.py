@@ -197,129 +197,60 @@ class SystemInstall(object):
             if possible_cls.detect():
                 return possible_cls()
 
-# PackageKit dbus interface contains bitfield constants which
-# aren't introspectable
-PK_PROVIDES_ANY = 1
-PK_FILTER_ENUM_NOT_INSTALLED = 1 << 3
-PK_FILTER_ENUM_NEWEST = 1 << 16
-PK_FILTER_ENUM_ARCH = 1 << 18
-PK_TRANSACTION_FLAG_ENUM_ONLY_TRUSTED = 1 << 1
-
-# NOTE: This class is unfinished
 class PKSystemInstall(SystemInstall):
     def __init__(self):
         SystemInstall.__init__(self)
-        self._loop = None
-        self._sysbus = None
-        self._pkdbus = None
-
-    def _on_pk_message(self, msgtype, msg):
-        logging.info(_('PackageKit: %s' % (msg,)))
-
-    def _on_pk_error(self, msgtype, msg):
-        logging.error(_('PackageKit: %s' % (msg,)))
-
-    def _get_new_transaction(self):
-        if self._loop is None:
-            import glib
-            self._loop = glib.MainLoop()
-        if self._sysbus is None:
-            import dbus.glib
-            import dbus
-            self._dbus = dbus
-            self._sysbus = dbus.SystemBus()
-        if self._pkdbus is None:
-            self._pkdbus = dbus.Interface(self._sysbus.get_object('org.freedesktop.PackageKit',
-                                              '/org/freedesktop/PackageKit'),
-                            'org.freedesktop.PackageKit')
-            properties = dbus.Interface(self._pkdbus, 'org.freedesktop.DBus.Properties')
-            self._pk_major = properties.Get('org.freedesktop.PackageKit', 'VersionMajor')
-            self._pk_minor = properties.Get('org.freedesktop.PackageKit', 'VersionMinor')
-        if self._pk_major == 1 or (self._pk_major == 0 and self._pk_minor >= 8):
-            txn_path = self._pkdbus.CreateTransaction()
-            txn = self._sysbus.get_object('org.freedesktop.PackageKit', txn_path)
-        else:
-            tid = self._pkdbus.GetTid()
-            txn = self._sysbus.get_object('org.freedesktop.PackageKit', tid)
-        txn_tx = self._dbus.Interface(txn, 'org.freedesktop.PackageKit.Transaction')
-        txn.connect_to_signal('Message', self._on_pk_message)
-        txn.connect_to_signal('ErrorCode', self._on_pk_error)
-        txn.connect_to_signal('Destroy', lambda *args: self._loop.quit())
-        return txn_tx, txn
+        # This should not fail since PKSystemInstall.detect() was called
+        from gi.repository import PackageKitGlib, GLib
+        self.pk = PackageKitGlib
+        self.glib = GLib
 
     def install(self, uninstalled):
         uninstalled_pkgconfigs, uninstalled_filenames = get_uninstalled_pkgconfigs_and_filenames(uninstalled)
+        logging.info(_('Using PackageKit to install packages.  Please wait.'))
+
+        pk_filter = self.pk.FilterEnum.NOT_INSTALLED \
+                    | self.pk.FilterEnum.NEWEST \
+                    | self.pk.FilterEnum.ARCH
+
         pk_package_ids = set()
+        pk_client = self.pk.Client.new()
 
         if uninstalled_pkgconfigs:
-            txn_tx, txn = self._get_new_transaction()
-            txn.connect_to_signal('Package', lambda info, pkid, summary: pk_package_ids.add(pkid))
-            if self._pk_major == 1 or (self._pk_major == 0 and self._pk_minor >= 9):
-                # PackageKit 1.0.x or 0.9.x
-                txn_tx.WhatProvides(PK_FILTER_ENUM_ARCH | PK_FILTER_ENUM_NEWEST |
-                                    PK_FILTER_ENUM_NOT_INSTALLED,
-                                    ['pkgconfig(%s)' % pkg for modname, pkg in
-                                     uninstalled_pkgconfigs])
-            elif self._pk_major == 0 and self._pk_minor == 8:
-                # PackageKit 0.8.x
-                txn_tx.WhatProvides(PK_FILTER_ENUM_ARCH | PK_FILTER_ENUM_NEWEST |
-                                    PK_FILTER_ENUM_NOT_INSTALLED,
-                                    PK_PROVIDES_ANY,
-                                    ['pkgconfig(%s)' % pkg for modname, pkg in
-                                     uninstalled_pkgconfigs])
-            else:
-                # PackageKit 0.7.x and older
-                txn_tx.WhatProvides('arch;newest;~installed', 'any',
-                                    ['pkgconfig(%s)' % pkg for modname, pkg in
-                                     uninstalled_pkgconfigs])
-            self._loop.run()
-            del txn, txn_tx
+            results = pk_client.what_provides(pk_filter,
+                          ['pkgconfig(%s)' % pkg for modname, pkg in uninstalled_pkgconfigs],
+                          None, lambda pkg,data: None)
+            for package in results.get_package_array():
+                if package.get_id():
+                    pk_package_ids.add(package.get_id())
 
         if uninstalled_filenames:
-            txn_tx, txn = self._get_new_transaction()
-            txn.connect_to_signal('Package', lambda info, pkid, summary: pk_package_ids.add(pkid))
-            if self._pk_major == 1 or (self._pk_major == 0 and self._pk_minor >= 8):
-                txn_tx.SearchFiles(PK_FILTER_ENUM_ARCH | PK_FILTER_ENUM_NEWEST |
-                                   PK_FILTER_ENUM_NOT_INSTALLED,
-                                   [pkg for modname, pkg in
-                                    uninstalled_filenames])
-            else:
-                txn_tx.SearchFiles('arch;newest;~installed',
-                                   [pkg for modname, pkg in
-                                    uninstalled_filenames])
-            self._loop.run()
-            del txn, txn_tx
+            results = pk_client.search_files(pk_filter,
+                            [path for _bin, path in uninstalled_filenames],
+                            None, lambda pkg,data: None)
+            for package in results.get_package_array():
+                if package.get_id():
+                    pk_package_ids.add(package.get_id())
 
-        # On Fedora 17 a file can be in two packages: the normal package and
-        # an older compat- package. Don't install compat- packages.
-        pk_package_ids = [pkg for pkg in pk_package_ids
-                          if not pkg.startswith('compat-')]
-
-        if len(pk_package_ids) == 0:
+        if not pk_package_ids:
             logging.info(_('Nothing available to install'))
             return
 
         logging.info(_('Installing:\n  %s' % ('\n  '.join(pk_package_ids, ))))
-
-        txn_tx, txn = self._get_new_transaction()
-        if self._pk_major == 1 or (self._pk_major == 0 and self._pk_minor >= 8):
-            # Using OnlyTrusted might break package installation on rawhide,
-            # where packages are unsigned, but this prevents users of normal
-            # distros with signed packages from seeing security warnings. It
-            # would be better to simulate the transaction first to decide
-            # whether OnlyTrusted will work before using it. See
-            # http://www.freedesktop.org/software/PackageKit/gtk-doc/introduction-ideas-transactions.html
-            txn_tx.InstallPackages(PK_TRANSACTION_FLAG_ENUM_ONLY_TRUSTED, pk_package_ids)
-        else:
-            # PackageKit 0.7.x and older
-            txn_tx.InstallPackages(True, pk_package_ids)
-        self._loop.run()
-
-        logging.info(_('Complete!'))
+        try:
+    	    pk_client.install_packages(self.pk.TransactionFlagEnum.ONLY_TRUSTED, list(pk_package_ids),
+                                       None, lambda pkg,data: None)
+            logging.info(_('Complete!'))
+        except self.glib.Error as e:
+            logging.info(_('Failed with error: %s' %e.message))
 
     @classmethod
     def detect(cls):
-        return cmds.has_command('pkcon')
+        try:
+            from gi.repository import PackageKitGlib
+            return hasattr(PackageKitGlib.Client, 'install_packages')
+        except ImportError:
+            return False
 
 class YumSystemInstall(SystemInstall):
     def __init__(self):
